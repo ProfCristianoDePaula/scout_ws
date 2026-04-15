@@ -43,7 +43,7 @@ def generate_launch_description():
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
 
     urdf_path   = os.path.join(pkg_scout_sim, 'urdf', 'scout_mini.urdf.xacro')
-    world_path  = os.path.join(pkg_scout_sim, 'worlds', 'scout_world.sdf')
+    world_path = os.path.join(pkg_scout_sim, 'worlds', 'dc_with_obstacles.sdf')
     bridge_config = os.path.join(pkg_scout_sim, 'config', 'ros_gz_bridge.yaml')
 
     set_gz_resource_path = SetEnvironmentVariable(

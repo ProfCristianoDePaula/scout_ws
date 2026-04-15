@@ -24,6 +24,7 @@ setup(
             'move_circle   = scout_control.move_circle:main',
             'sensor_reader = scout_control.sensor_reader:main',
             'obstacle_stop = scout_control.obstacle_stop:main',
+            'challenge2_navigator = scout_control.challenge2_navigator:main',
         ],
     },
 )
