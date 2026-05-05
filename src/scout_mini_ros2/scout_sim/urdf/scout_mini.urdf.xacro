@@ -29,13 +29,9 @@
 <robot name="scout_mini" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ═══════════════════ PARAMETERS ═══════════════════════════════════ -->
-  <!-- Mesh paths use the ROS 2 "package://" URI scheme:
-         - RViz: resolves via ROS package paths.
-         - Gazebo: ros_gz_sim translates package:// → model://, which
-           then resolves because we registered scout_sim as a model
-           via the model.config file at the package root.
-       Together this works for both engines without absolute paths. -->
-  <xacro:property name="mesh_path" value="$(find scout_sim)/meshes"/>
+    <!-- Mesh paths use the ROS 2 package URI scheme.
+      This avoids absolute install paths and is more robust across overlays. -->
+    <xacro:property name="mesh_path" value="package://scout_sim/meshes"/>
   <xacro:property name="base_length"   value="0.600"/>  <!-- m -->
   <xacro:property name="base_width"    value="0.450"/>  <!-- m -->
   <xacro:property name="base_height"   value="0.175"/>  <!-- m -->

@@ -43,8 +43,7 @@ Visualization Manager:
       Show Arrows: true
       Show Axes: true
       Show Names: false
-      Tree:
-        {}
+      Tree: {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/RobotModel
@@ -101,7 +100,7 @@ Visualization Manager:
       Value: true
     - Alpha: 0.7
       Class: rviz_default_plugins/Map
-      Color Scheme: map
+      Color Scheme: raw
       Draw Behind: true
       Enabled: true
       Name: Map
