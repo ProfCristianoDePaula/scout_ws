@@ -1,161 +1,279 @@
-# Challenge 2 – Scout Mini: Navegação Autônoma com Desvio de Obstáculos
+# AA07 – Scout Mini: Localização Autônoma com AMCL
 
 **Disciplina:** AMR – Autonomous Mobile Robots — UFSCar 2026  
 **Robô:** Scout Mini  
-**Arquivo principal:** `src/scout_mini_ros2/scout_control/scout_control/challenge2_navigator.py`
+**Tema:** Adaptive Monte Carlo Localization (AMCL)  
+**Mapa:** `maze_class7_map` (labirinto)  
+**Framework:** ROS 2 Jazzy + Nav2
 
 ---
 
 ## 1. Objetivo
 
-Navegar autonomamente em um corredor com 3 caixas (obstáculos) posicionadas aleatoriamente, partindo de um ponto inicial até o final do corredor, sem colisões.
+Validar o funcionamento do algoritmo **AMCL (Adaptive Monte Carlo Localization)** para localização do Scout Mini dentro de um labirinto pré-mapeado. A atividade inclui:
+
+1. **Tarefa 1:** Observar a convergência correta da nuvem de partículas com pose inicial conhecida
+2. **Tarefa 2:** Testar o comportamento com pose inicial errada e verificar recuperação
+3. **Tarefa 3:** Modificar parâmetros do AMCL (ex: `min_particles`) e comparar desempenho
 
 ---
 
-## 2. Arquitetura do Nó
+## 2. Stack de Navegação
 
-Toda a lógica está encapsulada na classe `ObstacleAvoidanceNode` (herda de `rclpy.node.Node`). Nenhuma lógica é implementada em `main()`.
+### Componentes Principais
 
-### Tópicos
+| Componente      | Pacote            | Função                      |
+| --------------- | ----------------- | --------------------------- |
+| **Nav2**        | `nav2_bringup`    | Stack de navegação autônoma |
+| **AMCL**        | `nav2_amcl`       | Localização probabilística  |
+| **Controlador** | `nav2_controller` | Seguir caminho planejado    |
+| **Planejador**  | `nav2_planner`    | Gerar trajetória até goal   |
+| **RViz**        | `rviz2`           | Visualização em tempo real  |
 
-| Direção | Tópico | Tipo | Descrição |
-|---------|--------|------|-----------|
-| Subscribe | `/scan` | `sensor_msgs/LaserScan` | Dados do LiDAR 360° |
-| Subscribe | `/odom` | `nav_msgs/Odometry` | Posição e orientação do robô |
-| Publish | `/cmd_vel` | `geometry_msgs/Twist` | Comandos de velocidade |
-
----
-
-## 3. Estratégia de Controle — Reativo Puro
-
-A abordagem final utiliza **controle reativo puro**: a cada leitura do LiDAR, o robô decide **sem memória de estado** o que fazer. Isso evita o problema de máquinas de estado que travavam o robô em loops de giro.
-
-### Setores do LiDAR
-
-O scan é dividido em 3 setores a partir do índice central (frente do robô):
-
-| Setor | Ângulo | Índices |
-|-------|--------|---------|
-| Frente | ±15° | `center-15` a `center+15` |
-| Esquerda | +15° a +60° | `center+15` a `center+60` |
-| Direita | -60° a -15° | `center-60` a `center-15` |
-
-O cone frontal estreito (±15°) garante que o robô só reage a obstáculos realmente na sua rota, e não às paredes laterais.
-
-### Comportamentos (prioridade de cima para baixo)
-
-| Estado | Condição | Vel. Linear | Vel. Angular | Descrição |
-|--------|----------|-------------|--------------|-----------|
-| **RÉ** | CRITICO por >8 ciclos | -0.20 m/s | ±0.8 rad/s | Marcha ré + gira para se destravar |
-| **CRITICO** | `frente < 0.70m` ou `lado < 0.50m` | 0.0 m/s | ±1.0 rad/s | Para e gira forte para o lado livre |
-| **DESVIO** | `frente < 1.50m` | 0.10 m/s | ±0.8 rad/s | Avança devagar + desvia para o lado livre |
-| **LIVRE** | `frente ≥ 1.50m` | 0.30 m/s | proporcional | Cruzeiro com correção de heading ao goal |
-
-### Correção de Parede (sempre ativa)
-
-Se `esquerda < 0.60m` → adiciona -0.5 rad/s (afasta da parede esquerda)  
-Se `direita < 0.60m` → adiciona +0.5 rad/s (afasta da parede direita)
-
-### Correção de Heading ao Goal
-
-No modo LIVRE, o robô calcula o ângulo até o goal `(13.2, 0.0)` e aplica correção proporcional:
+### Fluxo de Execução
 
 ```
-angular = clamp(1.20 × heading_error, -0.8, 0.8)
+[Simulação Gazebo] → [odometria + scan LiDAR] → [AMCL] → [Nav2] → [Scout Mini]
+                                                   ↓
+                                            nuvem de partículas
 ```
 
 ---
 
-## 4. Parâmetros de Distância de Segurança
+## 3. Configuração AMCL
 
-| Parâmetro | Valor | Descrição |
-|-----------|-------|-----------|
-| `FRONT_STOP` | 0.70 m | Distância frontal crítica — para e gira |
-| `FRONT_SLOW` | 1.50 m | Distância frontal de alerta — desacelera e desvia |
-| `SIDE_DANGER` | 0.50 m | Distância lateral perigosa — ativa modo CRITICO |
-| `WALL_MIN` | 0.60 m | Distância mínima das paredes — correção angular |
-| `GOAL_TOL` | 0.60 m | Tolerância para considerar goal atingido |
+### Arquivo de Parâmetros
 
-Esses valores foram calibrados empiricamente para o corredor do laboratório, considerando a largura do Scout Mini e o tamanho das caixas.
+Localização: `src/scout_mini_ros2/scout_sim/config/nav2_params.yaml`
 
----
+#### Parâmetros Críticos
 
-## 5. Recuperação de Encurralamento (Marcha Ré)
+| Parâmetro          | Valor (padrão) | Descrição                                   |
+| ------------------ | -------------- | ------------------------------------------- |
+| `min_particles`    | 500            | Número mínimo de partículas na nuvem        |
+| `max_particles`    | 2000           | Número máximo de partículas                 |
+| `initial_pose_x`   | 0.0            | Pose inicial em X (em metros)               |
+| `initial_pose_y`   | 0.0            | Pose inicial em Y (em metros)               |
+| `initial_pose_a`   | 0.0            | Pose inicial angular em theta (em radianos) |
+| `set_initial_pose` | true           | Se deve usar pose inicial informada         |
 
-Quando o robô fica preso (frente, esquerda e direita bloqueados), um contador `_stuck_count` incrementa a cada ciclo em CRITICO. Após **8 ciclos consecutivos** (~4 segundos), o robô entra em modo RÉ:
+### Nuvem de Partículas
 
-- Velocidade linear: **-0.20 m/s** (para trás)
-- Velocidade angular: **±0.8 rad/s** (gira para o lado mais livre)
-
-Ao ganhar espaço, o contador zera e o controle reativo normal retoma.
-
----
-
-## 6. Detecção e Estimativa de Pose das Caixas
-
-### Método
-
-1. Converte cada ponto do LiDAR em coordenadas cartesianas (x, y) no frame do sensor
-2. Aplica **clusterização euclidiana**: pontos consecutivos com distância < 0.25m pertencem ao mesmo cluster
-3. Filtra clusters com ≥ 5 pontos (elimina ruído)
-4. Calcula o centroide de cada cluster como posição estimada da caixa
-
-### Relatório
-
-Ao atingir o goal, o nó imprime as posições das caixas detectadas tanto no frame do sensor quanto no frame odométrico (transformação usando posição e yaw atuais do robô).
+- **Dispersão inicial:** Partículas distribuídas em volta da pose inicial
+- **Convergência:** À medida que o robô se move, partículas inconsistentes com sensores (LiDAR) são descartadas
+- **Objetivo:** Concentrar partículas na posição real do robô no mapa
 
 ---
 
-## 7. Como Executar
+## 4. Mapa do Ambiente
+
+- **Arquivo:** `maze_class7_map.pgm` + `maze_class7_map.yaml`
+- **Tipo:** Gridmap (255 = livre, 0 = obstáculo)
+- **Coordenada de origem:** Ver `maze_class7_map.yaml`
+- **Uso:** AMCL localiza o robô dentro deste mapa usando varreduras LiDAR
+
+---
+
+## 5. Como Executar
 
 ### Pré-requisitos
 
 - ROS 2 Jazzy instalado
 - Workspace compilado
+- Mapa `maze_class7_map.pgm` disponível
 
 ### Compilar
 
 ```bash
 cd ~/scout_ws
-colcon build --packages-select scout_control
+colcon build --packages-select scout_sim
 source install/setup.bash
 ```
 
-### Executar
+### Executar a Simulação com AMCL
 
-Terminal 1 — Simulação (Gazebo + Scout Mini):
-```bash
-# Lançar a simulação do Scout Mini no corredor
-ros2 launch scout_sim scout_corridor.launch.py
-```
+Terminal 1 — Simulação + AMCL + Nav2:
 
-Terminal 2 — Navegação autônoma:
 ```bash
 cd ~/scout_ws
 source install/setup.bash
-ros2 run scout_control challenge2_navigator
+ros2 launch scout_sim scout_sim_maze_nav2.launch.py
 ```
 
-### Verificar funcionamento
+Terminal 2 — RViz para visualização (opcional, mas recomendado):
 
-O nó imprime logs em tempo real:
-- `LIVRE` → navegando normalmente ao goal
-- `DESVIO` → detectou obstáculo, desviando
-- `CRITICO` → muito perto, parado e girando
-- `RE` → encurralado, dando marcha ré
-- `OBJETIVO ATINGIDO` → chegou ao final do corredor
-- `RELATORIO DE CAIXAS` → posições estimadas das caixas
+```bash
+cd ~/scout_ws
+source install/setup.bash
+ros2 run rviz2 rviz2 -d <path_to_config>/scout_nav2.rviz
+```
+
+### Monitorar Parâmetros AMCL em Tempo Real
+
+```bash
+# Verificar min_particles atual
+ros2 param get /amcl min_particles
+
+# Visualizar nuvem de partículas
+ros2 topic echo /particle_cloud
+
+# Status do AMCL
+ros2 service call /amcl/get_state std_srvs/srv/Empty
+```
 
 ---
 
-## 8. Evolução do Desenvolvimento
+## 6. Tarefas da Atividade AA07
 
-1. **Versão inicial (máquina de estados):** O robô entrava em estado EVITANDO e ficava preso girando até virar 180° porque a condição de saída (`front > threshold`) nunca era satisfeita no corredor estreito (o robô girava e via a parede).
+### Tarefa 1: Observar Convergência Correta
 
-2. **Ajuste de velocidades:** Redução da velocidade angular e aumento da linear durante desvio para fazer arcos em vez de giros no lugar. Melhorou mas ainda ficava preso.
+**Objetivo:** Validar que a nuvem de partículas converge corretamente quando a pose inicial é conhecida.
 
-3. **Controle reativo puro (versão final):** Eliminação da máquina de estados. A cada ciclo o robô decide independentemente: se a frente está livre, vai ao goal; se não, desvia. Quando a caixa sai do cone frontal estreito (±15°), ele imediatamente retoma rumo ao objetivo.
+**Procedimento:**
 
-4. **Aumento das distâncias de segurança:** `FRONT_SLOW` de 1.0m → 1.5m e `FRONT_STOP` de 0.5m → 0.7m para o robô começar a desviar mais cedo e não trombar nas caixas.
+1. Lançar a simulação com pose inicial correta (usar valor padrão ou informado)
+2. Observar em RViz a evolução da nuvem de partículas
+3. Registrar screenshots em 3 momentos:
+   - Início (partículas dispersas)
+   - Meio da convergência (~30 segundos)
+   - Convergência final (< 30 segundos ou < 5 segundos)
+4. Documentar tempo até convergência
 
-5. **Recuperação de encurralamento:** Adição de marcha ré automática quando o robô fica cercado por mais de 8 ciclos, permitindo se destravar de cantos apertados.
+**Resultado esperado:** Partículas convergem rapidamente para a posição real do robô.
+
+**Entrega:** Screenshots + análise em `Docs/Tarefa 1 - Observar a convergencia correta/`
+
+---
+
+### Tarefa 2: Teste com Pose Inicial Errada
+
+**Objetivo:** Validar recuperação do AMCL quando inicializado com pose errada.
+
+**Procedimento:**
+
+1. Modificar parâmetro `initial_pose_x`, `initial_pose_y` ou `initial_pose_a` em `nav2_params.yaml` para valor significativamente errado
+   - Ex: pose real = (0, 0), pose inicial = (5, 5, π)
+2. Recompilar: `colcon build --packages-select scout_sim --symlink-install`
+3. Lançar simulação e observar recuperação
+4. Registrar screenshots:
+   - Estado inicial (partículas espalhadas)
+   - Fase de transição
+   - Recuperação final
+5. Documentar tempo até reconvergência
+
+**Resultado esperado:** Mesmo com pose errada, AMCL converge para a posição correta após alguns ciclos de movimento e sensor update.
+
+**Entrega:** Screenshots + análise em `Docs/Tarefa 2 - Testar Pose Inicial errada/`
+
+---
+
+### Tarefa 3: Modificar Parâmetros (min_particles)
+
+**Objetivo:** Comparar impacto de `min_particles` no desempenho do AMCL.
+
+**Procedimento:**
+
+1. Alterar `min_particles` em `nav2_params.yaml` para valores diferentes:
+   - Cenário A: `min_particles = 100`
+   - Cenário B: `min_particles = 500` (padrão)
+   - Cenário C: `min_particles = 2000`
+2. Para cada cenário:
+   - Recompilar com `colcon build --packages-select scout_sim --symlink-install`
+   - Executar simulação
+   - Medir tempo de convergência
+   - Validar com `ros2 param get /amcl min_particles`
+   - Observar quantidade de partículas em `/particle_cloud`
+3. Tabular resultados e análise comparativa
+
+**Métricas a coletar:**
+
+- Tempo até convergência (segundos)
+- Precisão final da localização
+- Estabilidade da pose (variância)
+- Comportamento de `/particle_cloud`
+
+**Entrega:** Tabelas + gráficos + análise em `Docs/Tarefa 3 - Modificar Parametros/`
+
+---
+
+## 7. Tópicos e Serviços Importantes
+
+### Tópicos Publicados
+
+| Tópico            | Tipo                                      | Descrição                               |
+| ----------------- | ----------------------------------------- | --------------------------------------- |
+| `/particle_cloud` | `geometry_msgs/PoseArray`                 | Nuvem de partículas do AMCL             |
+| `/amcl_pose`      | `geometry_msgs/PoseWithCovarianceStamped` | Posição estimada (média das partículas) |
+| `/map`            | `nav_msgs/OccupancyGrid`                  | Mapa estático do labirinto              |
+
+### Tópicos Subscritos
+
+| Tópico  | Tipo                    | Descrição                   |
+| ------- | ----------------------- | --------------------------- |
+| `/scan` | `sensor_msgs/LaserScan` | Varredura LiDAR             |
+| `/odom` | `nav_msgs/Odometry`     | Odometria do Scout Mini     |
+| `/tf`   | `tf2_msgs/TFMessage`    | Transformações entre frames |
+
+### Parâmetros Dinâmicos (ROS Params)
+
+Acessíveis via `/amcl` namespace:
+
+```bash
+ros2 param set /amcl min_particles 100
+ros2 param set /amcl max_particles 2000
+ros2 param set /amcl alpha1 0.2  # coeficiente de ruído odométrico rotacional
+ros2 param set /amcl alpha2 0.2  # coeficiente de ruído odométrico linear
+```
+
+---
+
+## 8. Estrutura do Projeto
+
+```
+scout_ws/
+├── src/scout_mini_ros2/
+│   ├── scout_sim/
+│   │   ├── config/nav2_params.yaml     ← Parâmetros AMCL
+│   │   ├── launch/scout_sim_maze_nav2.launch.py
+│   │   └── worlds/maze_world.sdf
+│   ├── scout_description/
+│   ├── scout_bringup/
+│   └── scout_control/
+├── maze_class7_map.pgm              ← Mapa do labirinto
+├── maze_class7_map.yaml
+├── Docs/
+│   ├── Tarefa 1 - Observar a convergencia correta/
+│   ├── Tarefa 2 - Testar Pose Inicial errada/
+│   ├── Tarefa 3 - Modificar Parametros/
+│   └── teste_min_particles_amcl.md
+└── README.md (este arquivo)
+```
+
+---
+
+## 9. Dicas de Troubleshooting
+
+### AMCL não converge
+
+- Verificar se `/tf` está sendo publicado corretamente
+- Aumentar `alpha1`, `alpha2` (ruído odométrico)
+- Reduzir `min_particles` para testes rápidos
+- Verificar se mapa está carregado: `ros2 topic echo /map --once`
+
+### Gazebo/RViz crash durante execução
+
+- Usar `use_sim_time=true` em todos os nós
+- Se problema persista, reduzir `max_particles` ou `map_update_interval`
+
+### TF tree incompleto
+
+- Verificar launch file
+- Executar: `ros2 run tf2_tools view_frames`
+
+---
+
+## 10. Referências
+
+- [Nav2 Documentation](https://navigation.ros.org/)
+- [AMCL ROS 2](https://github.com/ros-planning/navigation2/tree/main/nav2_amcl)
+- [ROS 2 Jazzy Release](https://docs.ros.org/en/jazzy/)
