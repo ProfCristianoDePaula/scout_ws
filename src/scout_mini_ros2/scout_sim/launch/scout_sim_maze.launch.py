@@ -1,22 +1,4 @@
 #!/usr/bin/env python3
-"""
-scout_sim.launch.py
-===================
-Launches the Scout Mini simulation in Gazebo Harmonic with full ROS2 integration.
-
-What this launch file does:
-  1. Starts Gazebo Harmonic (gz sim) with scout_world.sdf
-  2. Spawns the Scout Mini robot from URDF/Xacro
-  3. Starts robot_state_publisher (URDF → /tf)
-  4. Starts ros_gz_bridge (Gazebo topics ↔ ROS2 topics)
-
-Usage:
-  ros2 launch scout_sim scout_sim.launch.py
-  ros2 launch scout_sim scout_sim.launch.py use_sim_time:=true
-  ros2 launch scout_sim scout_sim.launch.py headless:=true
-
-Authors: Milad and Kelen Teixeira, AMR Course UFSCar 2026
-"""
 
 import os
 from pathlib import Path
@@ -77,7 +59,7 @@ def generate_launch_description():
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
         ),
         launch_arguments={
-            'gz_args': ['-r ', world_path],   # -r = start running immediately
+            'gz_args': ['-r -s ', world_path],   # -r = start running immediately, -s = headless
         }.items(),
     )
 
@@ -102,8 +84,8 @@ def generate_launch_description():
         arguments=[
             '-name', 'scout_mini',
             '-topic', '/robot_description',
-            '-x', '-8.0',
-            '-y', '8.0',
+            '-x', '-7.0',
+            '-y', '-7.0',
             '-z', '0.2',   # spawn slightly above ground to avoid collision on start
             '-R', '0.0',
             '-P', '0.0',
@@ -118,14 +100,19 @@ def generate_launch_description():
         executable='parameter_bridge',
         name='ros_gz_bridge',
         output='screen',
-        parameters=[
-            #'config_file': bridge_config,
-            #'use_sim_time': use_sim_time,
-            '/cmd_vel@geometry_msgs/msg/Twist@gz.msgs.Twist',
-            '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
-            '/scan@sensor_msgs/msg/LaserScan@gz.msgs.LaserScan',
-            '/imu/data@sensor_msgs/msg/Imu@gz.msgs.Imu',
+        arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
+            '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+            '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+            '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
+            '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
+            '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',
         ],
+        parameters=[{
+            'config_file': bridge_config,
+            'use_sim_time': use_sim_time,
+        }],
     )
 
     return LaunchDescription([

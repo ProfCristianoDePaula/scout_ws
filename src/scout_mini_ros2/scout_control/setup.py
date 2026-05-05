@@ -25,6 +25,8 @@ setup(
             'sensor_reader = scout_control.sensor_reader:main',
             'obstacle_stop = scout_control.obstacle_stop:main',
             'challenge2_navigator = scout_control.challenge2_navigator:main',
+            'maze_obstacle_avoidance = scout_control.maze_obstacle_avoidance:main',
+            'obstacle_avoidance = scout_control.obstacle_avoidance:main',
         ],
     },
 )
