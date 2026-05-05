@@ -14,6 +14,7 @@ install(DIRECTORY
   config
   worlds
   meshes
+  maps
   DESTINATION share/${PROJECT_NAME}
 )
 

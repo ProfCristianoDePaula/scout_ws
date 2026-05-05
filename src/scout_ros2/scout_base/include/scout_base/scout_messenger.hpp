@@ -1,14 +1,36 @@
 /*
- * scout_messenger.hpp
- *
- * Created on: Jun 14, 2019 10:24
- * Description:
- *
  * Copyright (c) 2019 Ruixiang Du (rdu)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of the copyright holder nor the names of its
+ *      contributors may be used to endorse or promote products derived from
+ *      this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef SCOUT_BASE__SCOUT_MESSENGER_HPP_
+#define SCOUT_BASE__SCOUT_MESSENGER_HPP_
 
-#ifndef SCOUT_MESSENGER_HPP
-#define SCOUT_MESSENGER_HPP
+#include <tf2_ros/transform_broadcaster.h>
 
 #include <string>
 #include <mutex>
@@ -17,7 +39,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <tf2_ros/transform_broadcaster.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "scout_msgs/msg/scout_status.hpp"
@@ -26,26 +47,29 @@
 
 #include "ugv_sdk/mobile_robot/scout_robot.hpp"
 
-namespace westonrobot {
-template <typename ScoutType>
+namespace westonrobot
+{
+template<typename ScoutType>
 class ScoutMessenger {
- public:
+public:
   ScoutMessenger(std::shared_ptr<ScoutType> scout, rclcpp::Node *node)
-      : scout_(scout), node_(node) {}
+  : scout_(scout), node_(node) {}
 
-  void SetOdometryFrame(std::string frame) { odom_frame_ = frame; }
-  void SetBaseFrame(std::string frame) { base_frame_ = frame; }
-  void SetOdometryTopicName(std::string name) { odom_topic_name_ = name; }
+  void SetOdometryFrame(std::string frame) {odom_frame_ = frame;}
+  void SetBaseFrame(std::string frame) {base_frame_ = frame;}
+  void SetOdometryTopicName(std::string name) {odom_topic_name_ = name;}
 
-  void SetSimulationMode(int loop_rate) {
+  void SetSimulationMode(int loop_rate)
+  {
     simulated_robot_ = true;
     sim_control_rate_ = loop_rate;
   }
 
-  void SetupSubscription() {
+  void SetupSubscription()
+  {
     // odometry publisher
     odom_pub_ =
-        node_->create_publisher<nav_msgs::msg::Odometry>(odom_topic_name_, 50);
+      node_->create_publisher<nav_msgs::msg::Odometry>(odom_topic_name_, 50);
     status_pub_ = node_->create_publisher<scout_msgs::msg::ScoutStatus>(
         "/scout_status", 10);
     rc_state_pub_ = node_->create_publisher<scout_msgs::msg::ScoutRCState>(
@@ -64,7 +88,8 @@ class ScoutMessenger {
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
   }
 
-  void PublishStateToROS() {
+  void PublishStateToROS()
+  {
     current_time_ = node_->get_clock()->now();
 
     static bool init_run = true;
@@ -91,10 +116,10 @@ class ScoutMessenger {
     status_msg.error_code = state.system_state.error_code;
     status_msg.battery_voltage = state.system_state.battery_voltage;
 
-    rc_status_msg.stick_left_h =   state.rc_state.stick_left_h;
-    rc_status_msg.stick_left_v =   state.rc_state.stick_left_v;
-    rc_status_msg.stick_right_h =   state.rc_state.stick_right_h;
-    rc_status_msg.stick_right_v =   state.rc_state.stick_right_v;
+    rc_status_msg.stick_left_h = state.rc_state.stick_left_h;
+    rc_status_msg.stick_left_v = state.rc_state.stick_left_v;
+    rc_status_msg.stick_right_h = state.rc_state.stick_right_h;
+    rc_status_msg.stick_right_v = state.rc_state.stick_right_v;
 
     rc_status_msg.swa = state.rc_state.swa;
     rc_status_msg.swb = state.rc_state.swb;
@@ -102,7 +127,7 @@ class ScoutMessenger {
     rc_status_msg.swd = state.rc_state.swd;
 
     rc_status_msg.var_a = state.rc_state.var_a;
-    
+
 
     auto actuator = scout_->GetActuatorState();
 
@@ -111,33 +136,33 @@ class ScoutMessenger {
       uint8_t motor_id = actuator.actuator_hs_state[i].motor_id;
 
       status_msg.actuator_states[motor_id].rpm =
-          actuator.actuator_hs_state[i].rpm;
+        actuator.actuator_hs_state[i].rpm;
       status_msg.actuator_states[motor_id].current =
-          actuator.actuator_hs_state[i].current;
-      //status_msg.actuator_states[motor_id].pulse_count =
-          //actuator.actuator_hs_state[i].pulse_count;
+        actuator.actuator_hs_state[i].current;
+      // status_msg.actuator_states[motor_id].pulse_count =
+          // actuator.actuator_hs_state[i].pulse_count;
 
       // actuator_ls_state
       motor_id = actuator.actuator_ls_state[i].motor_id;
 
       status_msg.actuator_states[motor_id].driver_voltage =
-          actuator.actuator_ls_state[i].driver_voltage;
+        actuator.actuator_ls_state[i].driver_voltage;
       status_msg.actuator_states[motor_id].driver_temperature =
-          actuator.actuator_ls_state[i].driver_temp;
+        actuator.actuator_ls_state[i].driver_temp;
       status_msg.actuator_states[motor_id].motor_temperature =
-          actuator.actuator_ls_state[i].motor_temp;
-      //status_msg.actuator_states[motor_id].driver_state =
-          //actuator.actuator_ls_state[i].driver_state;
+        actuator.actuator_ls_state[i].motor_temp;
+      // status_msg.actuator_states[motor_id].driver_state =
+          // actuator.actuator_ls_state[i].driver_state;
     }
 
     status_msg.light_control_enabled = state.light_state.enable_cmd_ctrl;
     status_msg.front_light_state.mode = state.light_state.front_light.mode;
     status_msg.front_light_state.custom_value =
-        state.light_state.front_light.custom_value;
+      state.light_state.front_light.custom_value;
     status_msg.rear_light_state.mode = state.light_state.rear_light.mode;
     status_msg.rear_light_state.custom_value =
-        state.light_state.rear_light.custom_value;
-    
+      state.light_state.rear_light.custom_value;
+
     status_pub_->publish(status_msg);
     rc_state_pub_->publish(rc_status_msg);
 
@@ -148,7 +173,7 @@ class ScoutMessenger {
     last_time_ = current_time_;
   }
 
- private:
+private:
   std::shared_ptr<ScoutType> scout_;
   rclcpp::Node *node_;
 
@@ -168,9 +193,8 @@ class ScoutMessenger {
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr motion_cmd_sub_;
   rclcpp::Subscription<scout_msgs::msg::ScoutLightCmd>::SharedPtr
-      light_cmd_sub_;
+    light_cmd_sub_;
 
-  
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
@@ -182,7 +206,8 @@ class ScoutMessenger {
   rclcpp::Time last_time_;
   rclcpp::Time current_time_;
 
-  void TwistCmdCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
+  void TwistCmdCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
+  {
     if (!simulated_robot_) {
       SetScoutMotionCommand(scout_, msg);
     } else {
@@ -192,23 +217,28 @@ class ScoutMessenger {
     // ROS_INFO("Cmd received:%f, %f", msg->linear.x, msg->angular.z);
   }
 
-  template <typename T,
-            std::enable_if_t<!std::is_base_of<ScoutMiniOmniRobot, T>::value,
-                             bool> = true>
-  void SetScoutMotionCommand(std::shared_ptr<T> base,
-                             const geometry_msgs::msg::Twist::SharedPtr &msg) {
+  template<typename T,
+    std::enable_if_t<!std::is_base_of<ScoutMiniOmniRobot, T>::value,
+    bool> = true>
+  void SetScoutMotionCommand(
+    std::shared_ptr<T> base,
+    const geometry_msgs::msg::Twist::SharedPtr & msg)
+  {
     base->SetMotionCommand(msg->linear.x, msg->angular.z);
   }
 
-  template <typename T,
-            std::enable_if_t<std::is_base_of<ScoutMiniOmniRobot, T>::value,
-                             bool> = true>
-  void SetScoutMotionCommand(std::shared_ptr<T> base,
-                             const geometry_msgs::msg::Twist::SharedPtr &msg) {
+  template<typename T,
+    std::enable_if_t<std::is_base_of<ScoutMiniOmniRobot, T>::value,
+    bool> = true>
+  void SetScoutMotionCommand(
+    std::shared_ptr<T> base,
+    const geometry_msgs::msg::Twist::SharedPtr & msg)
+  {
     base->SetMotionCommand(msg->linear.x, msg->angular.z, msg->linear.y);
   }
 
-  void LightCmdCallback(const scout_msgs::msg::ScoutLightCmd::SharedPtr msg) {
+  void LightCmdCallback(const scout_msgs::msg::ScoutLightCmd::SharedPtr msg)
+  {
     if (!simulated_robot_) {
       if (msg->cmd_ctrl_allowed) {
         AgxLightMode f_mode;
@@ -216,22 +246,22 @@ class ScoutMessenger {
 
         switch (msg->front_mode) {
           case scout_msgs::msg::ScoutLightCmd::LIGHT_CONST_OFF: {
-            f_mode = AgxLightMode::CONST_OFF;
-            break;
-          }
+              f_mode = AgxLightMode::CONST_OFF;
+              break;
+            }
           case scout_msgs::msg::ScoutLightCmd::LIGHT_CONST_ON: {
-            f_mode = AgxLightMode::CONST_ON;
-            break;
-          }
+              f_mode = AgxLightMode::CONST_ON;
+              break;
+            }
           case scout_msgs::msg::ScoutLightCmd::LIGHT_BREATH: {
-            f_mode = AgxLightMode::BREATH;
-            break;
-          }
+              f_mode = AgxLightMode::BREATH;
+              break;
+            }
           case scout_msgs::msg::ScoutLightCmd::LIGHT_CUSTOM: {
-            f_mode = AgxLightMode::CUSTOM;
-            f_value = msg->front_custom_value;
-            break;
-          }
+              f_mode = AgxLightMode::CUSTOM;
+              f_value = msg->front_custom_value;
+              break;
+            }
         }
         scout_->SetLightCommand(f_mode, f_value, AgxLightMode::CONST_ON, 0);
       } else {
@@ -242,13 +272,15 @@ class ScoutMessenger {
     }
   }
 
-  geometry_msgs::msg::Quaternion createQuaternionMsgFromYaw(double yaw) {
+  geometry_msgs::msg::Quaternion createQuaternionMsgFromYaw(double yaw)
+  {
     tf2::Quaternion q;
     q.setRPY(0, 0, yaw);
     return tf2::toMsg(q);
   }
 
-  void PublishOdometryToROS(const MotionStateMessage &msg, double dt) {
+  void PublishOdometryToROS(const MotionStateMessage & msg, double dt)
+  {
     // perform numerical integration to get an estimation of pose
     double linear_speed = msg.linear_velocity;
     double angular_speed = msg.angular_velocity;
@@ -269,7 +301,7 @@ class ScoutMessenger {
     theta_ += d_theta;
 
     geometry_msgs::msg::Quaternion odom_quat =
-        createQuaternionMsgFromYaw(theta_);
+      createQuaternionMsgFromYaw(theta_);
 
     // publish tf transformation
     geometry_msgs::msg::TransformStamped tf_msg;
@@ -304,4 +336,4 @@ class ScoutMessenger {
 };
 }  // namespace westonrobot
 
-#endif /* SCOUT_MESSENGER_HPP */
+#endif  // SCOUT_BASE__SCOUT_MESSENGER_HPP_

@@ -54,7 +54,7 @@ set(DEPENDENCIES
 #   rclcpp tf2 tf2_ros std_msgs nav_msgs sensor_msgs robot_msgs)
 # target_link_libraries(mobile_base_messenger westonrobot::wrp_sdk)
 
-add_executable(scout_base_node 
+add_executable(scout_base_node
     src/scout_base_ros.cpp
     src/scout_base_node.cpp)
 target_link_libraries(scout_base_node ugv_sdk)
@@ -65,7 +65,7 @@ install(TARGETS scout_base_node
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}/)
-  
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

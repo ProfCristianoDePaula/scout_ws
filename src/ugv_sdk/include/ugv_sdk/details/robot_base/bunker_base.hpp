@@ -56,6 +56,9 @@ class BunkerBase : public AgilexBase<ParserType>, public BunkerInterface {
     for (int i = 0; i < 3; ++i) {
       bunker_actuator.actuator_hs_state[i] = actuator.actuator_hs_state[i];
       bunker_actuator.actuator_ls_state[i] = actuator.actuator_ls_state[i];
+    }
+
+    for (int i = 0; i < 2; ++i) {
       bunker_actuator.actuator_state[i] = actuator.actuator_state[i];
     }
     return bunker_actuator;

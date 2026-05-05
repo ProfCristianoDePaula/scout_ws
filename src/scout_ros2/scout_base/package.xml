@@ -4,11 +4,11 @@
   <name>scout_base</name>
   <version>0.1.0</version>
   <description>Control Nodes for Mobile Robots from Weston Robot/AgileX Robotics</description>
-  
-  <author email="contact@westonrobot.com">TODO</author>
-  <maintainer email="contact@westonrobot.com">TODO</maintainer>
 
+  <maintainer email="contact@westonrobot.com">TODO</maintainer>
   <license>BSD</license>
+
+  <author email="contact@westonrobot.com">TODO</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

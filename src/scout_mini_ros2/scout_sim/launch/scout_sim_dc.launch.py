@@ -110,6 +110,10 @@ def generate_launch_description():
     )
 
     # ── Spawn robot in Gazebo ───────────────────────────────────────────
+    # NOTE: Using '-string' (pre-processed URDF) instead of '-topic' to avoid
+    # a QoS mismatch: robot_state_publisher publishes /robot_description with
+    # transient_local durability, but ros_gz_sim create subscribes volatile,
+    # causing it to miss the already-published message and wait forever.
     spawn_robot = Node(
         package='ros_gz_sim',
         executable='create',
@@ -117,7 +121,7 @@ def generate_launch_description():
         output='screen',
         arguments=[
             '-name', 'scout_mini',
-            '-topic', '/robot_description',
+            '-string', robot_description,
             '-x', '0.0',
             '-y', '0.0',
             '-z', '0.2',
@@ -136,6 +140,8 @@ def generate_launch_description():
         arguments=[
             '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
             '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+            '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+            '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
             '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
             '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',
             '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',

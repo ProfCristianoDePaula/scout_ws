@@ -1,30 +1,44 @@
 # ros_gz_bridge configuration for Scout Mini simulation
-# Maps Gazebo internal topics → ROS2 topics
+# Maps Gazebo internal topics ↔ ROS 2 topics
 #
-# Format: gz_topic_name@ros2_msg_type[gz_msg_type
-#   [ = bidirectional   (Gazebo → ROS2 and ROS2 → Gazebo)
-#   ] = unidirectional  (ROS2 → Gazebo only)
-#   [ = unidirectional  (Gazebo → ROS2 only)
+# Direction values:
+#   GZ_TO_ROS      Gazebo → ROS 2  (sensors, odometry, clock)
+#   ROS_TO_GZ      ROS 2  → Gazebo (commands like cmd_vel)
+#   BIDIRECTIONAL  both ways
 #
-# Author: Milad, AMR Course UFSCar 2025
+# Author: Milad, AMR Course UFSCar 2026
 
-# ── Clock ──────────────────────────────────────────────────────────────
-/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock
+- topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
 
-# ── Velocity command (ROS2 → Gazebo) ───────────────────────────────────
-/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist
+- topic_name: "/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
 
-# ── Odometry (Gazebo → ROS2) ───────────────────────────────────────────
-/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry
+- topic_name: "/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
 
-# ── TF from odometry (Gazebo → ROS2) ──────────────────────────────────
-/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V
+- topic_name: "/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
 
-# ── Joint states (Gazebo → ROS2) ──────────────────────────────────────
-/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model
+- topic_name: "/joint_states"
+  ros_type_name: "sensor_msgs/msg/JointState"
+  gz_type_name: "gz.msgs.Model"
+  direction: GZ_TO_ROS
 
-# ── LiDAR scan (Gazebo → ROS2) ────────────────────────────────────────
-/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan
+- topic_name: "/scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
+  direction: GZ_TO_ROS
 
-# ── IMU (Gazebo → ROS2) ───────────────────────────────────────────────
-/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU
+- topic_name: "/imu/data"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS

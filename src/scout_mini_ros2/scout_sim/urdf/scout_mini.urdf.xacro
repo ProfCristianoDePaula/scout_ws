@@ -29,6 +29,12 @@
 <robot name="scout_mini" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ═══════════════════ PARAMETERS ═══════════════════════════════════ -->
+  <!-- Mesh paths use the ROS 2 "package://" URI scheme:
+         - RViz: resolves via ROS package paths.
+         - Gazebo: ros_gz_sim translates package:// → model://, which
+           then resolves because we registered scout_sim as a model
+           via the model.config file at the package root.
+       Together this works for both engines without absolute paths. -->
   <xacro:property name="mesh_path" value="$(find scout_sim)/meshes"/>
   <xacro:property name="base_length"   value="0.600"/>  <!-- m -->
   <xacro:property name="base_width"    value="0.450"/>  <!-- m -->
@@ -206,16 +212,73 @@
       <wheel_separation>${track_width}</wheel_separation>
       <wheel_radius>${wheel_radius}</wheel_radius>
 
-      <!-- ROS2 topic names -->
-      <topic>cmd_vel</topic>
-      <odom_topic>odom</odom_topic>
-      <tf_topic>tf</tf_topic>
+      <!-- ROS2 topic for velocity commands -->
+      <topic>/cmd_vel</topic>
+
+      <!-- DiffDrive's odom output is DISABLED.  The wheel-encoder
+           integration is unreliable for skid-steer (wheels slip during
+           rotation, so encoders report rotation that didn't physically
+           happen).  We use the OdometryPublisher plugin below to publish
+           ground-truth odometry from Gazebo's physics state instead.
+
+           These topic names are intentionally non-bridged so the bridge
+           never sees them. -->
+      <odom_topic>/diff_drive_odom_unused</odom_topic>
+      <tf_topic>/diff_drive_tf_unused</tf_topic>
       <frame_id>odom</frame_id>
       <child_frame_id>base_footprint</child_frame_id>
 
       <!-- Velocity limits (Scout Mini hardware specs) -->
       <max_linear_acceleration>1.0</max_linear_acceleration>
       <max_angular_acceleration>2.0</max_angular_acceleration>
+    </plugin>
+  </gazebo>
+
+  <!-- ═══════════════════ ODOMETRY PUBLISHER (ground truth) ═══════════ -->
+  <!--
+    Publishes the chassis's TRUE pose from Gazebo's physics state, not
+    from wheel encoders.  This solves the skid-steer slip problem: when
+    wheels spin in place, ground-truth says "no motion" so odom and TF
+    stay still, and the lidar doesn't appear to rotate in the map.
+
+    Educationally: this is "cheating" — real robots can't see their
+    own pose this way.  Real-world solutions involve IMU + wheel-encoder
+    fusion (e.g. robot_localization's EKF).  For this teaching exercise,
+    we trade a tiny bit of realism for a major reduction in confusion.
+  -->
+  <gazebo>
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_topic>/odom</odom_topic>
+      <tf_topic>/tf</tf_topic>
+      <dimensions>2</dimensions>
+    </plugin>
+  </gazebo>
+
+  <!-- ═══════════════════ VELOCITY CONTROL (chassis motion) ═══════════ -->
+  <!--
+    Directly enforces the chassis's linear and angular velocity from
+    /cmd_vel, bypassing wheel-ground physics entirely.  This solves the
+    skid-steer rotation problem: when MPPI commands "rotate at 0.5 rad/s"
+    the chassis ACTUALLY rotates at 0.5 rad/s — no slip, no friction
+    artifacts, no "Failed to make progress" timeouts.
+
+    DiffDrive (above) still subscribes to /cmd_vel and spins the wheel
+    joints, so wheels visually rotate. But the chassis pose is dictated
+    by VelocityControl, not by wheel-ground friction.
+
+    Educationally: this is "kinematic" simulation rather than "dynamic" —
+    common practice in Nav2 teaching demos so students learn navigation
+    concepts without debugging Gazebo's notoriously finicky skid-steer
+    friction. Real hardware tests still validate true wheel physics.
+  -->
+  <gazebo>
+    <plugin filename="gz-sim-velocity-control-system"
+            name="gz::sim::systems::VelocityControl">
+      <topic>/cmd_vel</topic>
     </plugin>
   </gazebo>
 
@@ -229,6 +292,7 @@
       <always_on>true</always_on>
       <visualize>true</visualize>
       <topic>scan</topic>
+      <gz_frame_id>lidar_link</gz_frame_id>
       <lidar>
         <scan>
           <horizontal>

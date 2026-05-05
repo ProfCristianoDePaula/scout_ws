@@ -13,6 +13,11 @@ option(STATIC_CHECK "Run static check" OFF)
 # set(CMAKE_BUILD_TYPE Release)
 # set(CMAKE_BUILD_TYPE Debug)
 
+## Suppress unused-variable warning: colcon injects CATKIN_INSTALL_INTO_PREFIX_ROOT
+## even in ROS 2 builds where catkin is not used. Dereferencing the value (not
+## just checking DEFINED) is required for CMake to consider it "used".
+set(_catkin_unused "${CATKIN_INSTALL_INTO_PREFIX_ROOT}")
+
 ## Check if pkg is built with ROS catkin
 if(CATKIN_DEVEL_PREFIX)
     message(STATUS "Build package with catkin")

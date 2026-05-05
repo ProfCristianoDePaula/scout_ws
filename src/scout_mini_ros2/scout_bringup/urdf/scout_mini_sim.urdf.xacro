@@ -74,7 +74,8 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://scout_description/meshes/${mesh_type}.dae"/>
+          <!-- <mesh filename="package://scout_description/meshes/${mesh_type}.dae"/> -->
+          <mesh filename="package://scout_sim/meshes/${mesh_type}.dae"/>
         </geometry>
       </visual>
       <collision>
@@ -119,7 +120,8 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <!-- Real Scout Mini body mesh from scout_description package -->
-        <mesh filename="package://scout_description/meshes/base_link.dae"/>
+        <!-- <mesh filename="package://scout_description/meshes/base_link.dae"/> -->
+        <mesh filename="package://scout_sim/meshes/base_link.dae"/>
       </geometry>
     </visual>
     <collision>
